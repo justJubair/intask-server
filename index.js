@@ -1,12 +1,14 @@
 require('dotenv').config()
-const { MongoClient, ServerApiVersion } = require('mongodb');
+const { MongoClient, ServerApiVersion, ObjectId } = require('mongodb');
 const express = require("express")
 const app = express()
 const cors = require("cors")
 const port = process.env.PORT || 5000
 
 // middlewares
-app.use(cors())
+app.use(cors({
+  origin: ["http://localhost:5173", "https://intask-client.vercel.app", "https://intask-client-cbsrvykf2-jubair-ahmeds-projects.vercel.app"]
+}))
 app.use(express.json())
 
 
@@ -22,10 +24,12 @@ const client = new MongoClient(process.env.DB_URI, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
 
 
     const tasksCollection = client.db("inTaskDB").collection("tasks")
+    const onGoingTasksCollection = client.db("inTaskDB").collection("onGoingTasks")
+    const completeTasksCollection = client.db("inTaskDB").collection("completeTasks")
 
 
     // GET; all the user based tasks;
@@ -46,9 +50,75 @@ async function run() {
     })
 
 
+    // GET; a on going task
+    app.get("/onGoingTasks", async(req,res)=>{
+      let query = {}
+      if(req?.query?.userEmail){
+          query = {userEmail: req?.query?.userEmail}
+      }
+      const result = await onGoingTasksCollection.find(query).toArray()
+      res.send(result)
+    })
 
-    // Send a ping to confirm a successful connection
-    await client.db("admin").command({ ping: 1 });
+
+    // POST; a task on going list
+    app.post("/onGoingTasks", async(req,res)=>{
+      const onGoingTask = req?.body;
+      const result = await onGoingTasksCollection.insertOne(onGoingTask)
+      res.send(result)
+    })
+
+    // DELETE; a ongoin task
+    app.delete("/onGoingtasks/:id", async(req,res)=>{
+      const id = req?.params?.id;
+      const query = {_id: new ObjectId(id)}
+
+      const result = await onGoingTasksCollection.deleteOne(query)
+      res.send(result)
+    })
+
+
+    // GET; complete task based on user
+    app.get("/completeTasks", async(req,res)=>{
+      let query = {}
+      if(req?.query?.userEmail){
+          query = {userEmail: req?.query?.userEmail}
+      }
+
+      const result = await completeTasksCollection.find(query).toArray()
+      res.send(result)
+    })
+
+
+    // POST; a task on complete list
+    app.post("/completeTasks", async(req,res)=>{
+      const completeTask = req?.body;
+      const result = await completeTasksCollection.insertOne(completeTask)
+      res.send(result)
+    })
+
+    // Delete; a complete task
+    app.delete("/completeTasks/:id", async(req,res)=>{
+      const id = req?.params?.id;
+      const query = {_id: new ObjectId(id)}
+
+      const result = await completeTasksCollection.deleteOne(query)
+      res.send(result)
+    })
+
+    // Delete: a task
+    app.delete("/tasks/:id", async(req,res)=>{
+      const id = req?.params?.id;
+      const query = {_id: new ObjectId(id)}
+
+      const result = await tasksCollection.deleteOne(query)
+      res.send(result)
+    })
+
+
+
+    // // Send a ping to confirm a successful connection
+    // await client.db("admin").command({ ping: 1 });
     console.log("Pinged your deployment. You successfully connected to MongoDB!");
   } finally {
     // Ensures that the client will close when you finish/error
